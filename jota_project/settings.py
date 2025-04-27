@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'news_api',
+    'drf_spectacular',
 ]
 
 MIDDLEWARE = [
@@ -140,8 +141,10 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.IsAuthenticatedOrReadOnly',
-    )
+        # 'rest_framework.permissions.IsAuthenticatedOrReadOnly',
+        'rest_framework.permissions.AllowAny',
+    ),
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
 SIMPLE_JWT = {
@@ -150,3 +153,11 @@ SIMPLE_JWT = {
 }
 
 AUTH_USER_MODEL = 'news_api.User'
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'JOTA News API',
+    'DESCRIPTION': 'API para gerenciamento de notícias da plataforma JOTA.',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'COMPONENT_SPLIT_REQUEST': True,
+}

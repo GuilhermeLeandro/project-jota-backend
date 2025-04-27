@@ -3,6 +3,7 @@ Django==4.2.20
 djangorestframework==3.16.0
 djangorestframework_simplejwt==5.5.0
 mysqlclient==2.2.7
+pillow==11.2.1
 PyJWT==2.9.0
 python-dotenv==1.1.0
 sqlparse==0.5.3

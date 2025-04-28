@@ -1,0 +1,49 @@
+name: Django CI
+
+on:
+  push:
+    branches: [ "main" ] 
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build_and_test:
+    name: Build Docker Images and Run Tests
+    runs-on: ubuntu-latest # Usar a versão mais recente do Ubuntu disponível nos runners
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Compose environment variables
+      run: |
+        echo "Criando arquivo .env para CI..."
+        echo "SECRET_KEY=${{ secrets.SECRET_KEY }}" >> .env
+        echo "DEBUG=False" >> .env # Importante: Rodar CI com DEBUG=False
+        echo "DB_NAME=${{ secrets.DB_NAME }}" >> .env
+        echo "DB_USER=${{ secrets.DB_USER }}" >> .env
+        echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
+        echo "DB_ROOT_PASSWORD=${{ secrets.DB_ROOT_PASSWORD }}" >> .env
+        echo "DB_HOST=db" >> .env # Host para comunicação entre containers
+        echo "DB_PORT=3306" >> .env # Porta interna do DB
+        echo "CELERY_BROKER_URL=redis://redis:6379/0" >> .env
+        echo "CELERY_RESULT_BACKEND=redis://redis:6379/0" >> .env
+        # DB_PORT_HOST não é necessário para CI, pois não acessaremos o DB do host do runner
+        echo "Arquivo .env criado para CI."
+
+    - name: Build Docker images
+      run: docker-compose build
+
+    - name: Start dependent services (DB and Redis)
+      run: |
+        docker-compose up -d db redis # Inicia apenas DB e Redis em background
+        echo "Esperando DB e Redis iniciarem e passarem nos healthchecks..."
+        sleep 15 # Dar um tempo extra para os serviços estabilizarem após healthcheck
+
+    - name: Run tests
+      run: docker-compose exec -T web pytest # -T desabilita pseudo-TTY, recomendado para CI
+
+    - name: Stop services
+      # Garante que os serviços serão parados mesmo se os testes falharem
+      if: always()
+      run: docker-compose down

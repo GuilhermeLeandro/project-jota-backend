@@ -9,10 +9,21 @@ services:
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
     volumes:
       - mysql_data:/var/lib/mysql
+      - ./docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
     ports:
       - "${DB_PORT_HOST:-3307}:3306"
     healthcheck:
         test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost", "-u${DB_USER}", "-p${DB_PASSWORD}"]
+        interval: 10s
+        timeout: 5s
+        retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: jota_redis_broker
+    ports: []
+    healthcheck:
+        test: ["CMD", "redis-cli", "ping"]
         interval: 10s
         timeout: 5s
         retries: 5
@@ -34,8 +45,42 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       DB_HOST: db
       DB_PORT: 3306
+      # Adicionar variáveis para Celery/Redis
+      CELERY_BROKER_URL: redis://redis:6379/0 # URL do broker Redis
+      CELERY_RESULT_BACKEND: redis://redis:6379/0 # URL do backend de resultados (opcional, mas útil)
     depends_on:
       db:
+        condition: service_healthy
+      # Adicionar dependência do Redis
+      redis:
+         condition: service_healthy # Espera o healthcheck do redis passar
+
+  # NOVO SERVIÇO CELERY WORKER
+  worker:
+    build: . # Usa a mesma imagem do 'web'
+    container_name: jota_celery_worker
+    # Comando para iniciar o worker Celery
+    # O nome 'jota_project' deve ser o nome do diretório do seu projeto Django
+    command: celery -A jota_project worker --loglevel=info
+    volumes:
+      - .:/app # Mapeia o código para que o worker veja as tasks
+    environment:
+      # Precisa das mesmas variáveis de ambiente que 'web' para acessar settings e DB (se necessário nas tasks)
+      DEBUG: ${DEBUG:-True}
+      SECRET_KEY: ${SECRET_KEY}
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_HOST: db
+      DB_PORT: 3306
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    depends_on:
+      web: # Garante que o código Django está pronto (embora não estritamente necessário só para o worker)
+        condition: service_started
+      redis:
+        condition: service_healthy
+      db: # Se suas tasks precisarem do banco
         condition: service_healthy
 
 volumes:

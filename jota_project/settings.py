@@ -86,8 +86,14 @@ DATABASES = {
         'NAME': os.getenv('DB_NAME', 'jota_db'),
         'USER': os.getenv('DB_USER', 'jota_user'),
         'PASSWORD': os.getenv('DB_PASSWORD', 'jota_password'),
-        'HOST': os.getenv('DB_HOST', 'localhost'),
+        'HOST': os.getenv('DB_HOST', 'db'),
         'PORT': os.getenv('DB_PORT', '3306'),
+        # REMOVA ESTA SEÇÃO 'TEST' INTEIRA
+        # 'TEST': {
+        #     'NAME': f"test_{os.getenv('DB_NAME', 'jota_db')}",
+        #     'USER': 'root',
+        #     'PASSWORD': os.getenv('DB_ROOT_PASSWORD'),
+        # },
     }
 }
 
@@ -160,3 +166,18 @@ SPECTACULAR_SETTINGS = {
     'SERVE_INCLUDE_SCHEMA': False,
     'COMPONENT_SPLIT_REQUEST': True,
 }
+
+# --- Configurações do Celery ---
+# URL do Broker (Redis, RabbitMQ, etc.) - Vem do .env via docker-compose
+CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://redis:6379/0')
+
+# URL do Backend de Resultados (onde Celery armazena status/resultados das tasks) - Vem do .env
+CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'redis://redis:6379/0')
+
+
+CELERY_ACCEPT_CONTENT = ['json']       # Formato de serialização aceito
+CELERY_TASK_SERIALIZER = 'json'        # Formato de serialização das tasks
+CELERY_RESULT_SERIALIZER = 'json'      # Formato de serialização dos resultados
+CELERY_TIMEZONE = TIME_ZONE            # Usar o mesmo timezone do Django (UTC)
+CELERY_TASK_TRACK_STARTED = True       # Rastrear quando a task inicia
+CELERY_TASK_TIME_LIMIT = 30 * 60       # Tempo limite para tasks (opcional)

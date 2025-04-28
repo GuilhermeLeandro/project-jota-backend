@@ -9,6 +9,7 @@ from .serializers import (
     PlanSerializer, UserPlanSerializer
 )
 from .permissions import IsAdminOrReadOnly, IsAdminUser, IsEditorOwnerOrAdminOrReadOnly
+from .tasks import send_notification_email_task
 
 class UserViewSet(viewsets.ModelViewSet):
     """
@@ -108,12 +109,22 @@ class NewsViewSet(viewsets.ModelViewSet):
 
 
     def perform_create(self, serializer):
-        """ Garante que apenas Admins ou Editores possam criar notícias """
         if not (self.request.user.role == User.Role.ADMIN or self.request.user.role == User.Role.EDITOR):
              from rest_framework.exceptions import PermissionDenied
              raise PermissionDenied("Apenas Admins ou Editores podem criar notícias.")
-        # O serializer já pega o usuário do contexto da requisição
-        serializer.save() # author=self.request.user é tratado no serializer
+
+        news_instance = serializer.save()
+
+        # Chama a task assíncrona após criar a notícia
+        if news_instance.status == News.Status.PUBLISHED:
+            subject = f"Nova Notícia Publicada: {news_instance.title}"
+            message = f"A notícia '{news_instance.title}' foi publicada. Veja em /api/news/{news_instance.id}/"
+            # Simula envio para um admin ou lista de e-mails
+            admin_email = "admin@jota.info"
+            # Usa .delay() para enviar a task para a fila do Celery
+            send_notification_email_task.delay(admin_email, subject, message)
+            print(f"Task de notificação para '{news_instance.title}' enviada para a fila.")
+
 
     def get_serializer_context(self):
         """ Passa o request para o serializer """

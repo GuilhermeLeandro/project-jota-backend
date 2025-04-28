@@ -2,48 +2,60 @@ name: Django CI
 
 on:
   push:
-    branches: [ "main" ] 
+    branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
 
 jobs:
   build_and_test:
     name: Build Docker Images and Run Tests
-    runs-on: ubuntu-latest # Usar a versão mais recente do Ubuntu disponível nos runners
+    runs-on: ubuntu-latest
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Install Docker Compose plugin
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y docker-compose-plugin # Instala o plugin 'docker compose'
+
     - name: Set up Docker Compose environment variables
       run: |
         echo "Criando arquivo .env para CI..."
+        # ... (restante do passo .env igual) ...
         echo "SECRET_KEY=${{ secrets.SECRET_KEY }}" >> .env
-        echo "DEBUG=False" >> .env # Importante: Rodar CI com DEBUG=False
+        echo "DEBUG=False" >> .env
         echo "DB_NAME=${{ secrets.DB_NAME }}" >> .env
         echo "DB_USER=${{ secrets.DB_USER }}" >> .env
         echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
         echo "DB_ROOT_PASSWORD=${{ secrets.DB_ROOT_PASSWORD }}" >> .env
-        echo "DB_HOST=db" >> .env # Host para comunicação entre containers
-        echo "DB_PORT=3306" >> .env # Porta interna do DB
+        echo "DB_HOST=db" >> .env
+        echo "DB_PORT=3306" >> .env
         echo "CELERY_BROKER_URL=redis://redis:6379/0" >> .env
         echo "CELERY_RESULT_BACKEND=redis://redis:6379/0" >> .env
-        # DB_PORT_HOST não é necessário para CI, pois não acessaremos o DB do host do runner
         echo "Arquivo .env criado para CI."
+        echo "Conteúdo do .env de CI (exceto senhas):"
+        grep -v 'PASSWORD\|SECRET_KEY' .env || echo ".env não contém linhas sem senha/secret key"
 
     - name: Build Docker images
-      run: docker-compose build
+      run: docker compose build
 
     - name: Start dependent services (DB and Redis)
       run: |
-        docker-compose up -d db redis # Inicia apenas DB e Redis em background
+        docker compose up -d db redis # <--- MUDANÇA
         echo "Esperando DB e Redis iniciarem e passarem nos healthchecks..."
-        sleep 15 # Dar um tempo extra para os serviços estabilizarem após healthcheck
+        sleep 20
+
+    - name: Check running containers
+      run: docker ps
 
     - name: Run tests
-      run: docker-compose exec -T web pytest # -T desabilita pseudo-TTY, recomendado para CI
+      run: docker compose exec -T web pytest
 
     - name: Stop services
-      # Garante que os serviços serão parados mesmo se os testes falharem
       if: always()
-      run: docker-compose down
+      run: docker compose down

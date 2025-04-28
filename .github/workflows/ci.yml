@@ -18,15 +18,25 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
-    - name: Install Docker Compose plugin
+    - name: Install Docker Compose plugin and Verify
       run: |
-        sudo apt-get update
-        sudo apt-get install -y docker-compose-plugin # Instala o plugin 'docker compose'
+        echo "Attempting to install docker-compose-plugin..."
+        sudo apt-get update -y
+        sudo apt-get install -y docker-compose-plugin
+        echo "Installation command finished."
+        echo "Verifying docker compose version..."
+        docker compose version || echo "'docker compose version' failed"
+        echo "Verifying docker-compose (hyphen) version..."
+        docker-compose --version || echo "'docker-compose --version' failed"
+        echo "Checking PATH..."
+        echo $PATH
+        echo "Checking docker plugin location..."
+        ls -l /usr/libexec/docker/cli-plugins/docker-compose || echo "Plugin not found at expected location"
+        ls -l /usr/local/lib/docker/cli-plugins/docker-compose || echo "Plugin not found at alternative location"
 
     - name: Set up Docker Compose environment variables
       run: |
-        echo "Criando arquivo .env para CI..."
-        # ... (restante do passo .env igual) ...
+        # ... (criação do .env igual) ...
         echo "SECRET_KEY=${{ secrets.SECRET_KEY }}" >> .env
         echo "DEBUG=False" >> .env
         echo "DB_NAME=${{ secrets.DB_NAME }}" >> .env
@@ -46,7 +56,7 @@ jobs:
 
     - name: Start dependent services (DB and Redis)
       run: |
-        docker compose up -d db redis # <--- MUDANÇA
+        docker compose up -d db redis
         echo "Esperando DB e Redis iniciarem e passarem nos healthchecks..."
         sleep 20
 

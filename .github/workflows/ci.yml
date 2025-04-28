@@ -18,7 +18,6 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
-    # Instalação manual do Docker Compose (plugin v2)
     - name: Install Docker Compose v2 plugin
       run: |
         echo "Installing Docker Compose v2 plugin..."
@@ -37,7 +36,6 @@ jobs:
     - name: Set up Docker Compose environment variables
       run: |
         echo "Criando arquivo .env para CI..."
-        # ALERTA: Certifique-se que os Secrets correspondentes foram criados no GitHub!
         echo "SECRET_KEY=${{ secrets.SECRET_KEY }}" >> .env
         echo "DEBUG=False" >> .env
         echo "DB_NAME=${{ secrets.DB_NAME }}" >> .env
@@ -57,15 +55,15 @@ jobs:
 
     - name: Start dependent services (DB and Redis)
       run: |
-        docker compose up -d db redis # Usa 'docker compose'
+        docker compose up -d db redis # Inicia APENAS db e redis
         echo "Esperando DB e Redis iniciarem e passarem nos healthchecks..."
         sleep 20
 
     - name: Check running containers
       run: docker ps
 
-    - name: Run tests
-      run: docker compose exec -T web pytest
+    - name: Run tests using docker compose run
+      run: docker compose run --rm web pytest
 
     - name: Stop services
       if: always()
